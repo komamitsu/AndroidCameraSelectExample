@@ -154,6 +154,16 @@ public class CameraSampleActivity extends Activity {
     @Override
     public Object instantiateItem(ViewGroup container, int position) {
       Uri uri = imageUris.get(position);
+      Bitmap bitmap = getBitmap(uri);
+      
+      ImageView imageView = new ImageView(context);
+	    imageView.setImageBitmap(bitmap);
+
+      container.addView(imageView);
+      return imageView;
+    }
+    
+    private Bitmap getBitmap(Uri uri) {
       Cursor c = getContentResolver().query(uri, null, null, null, null);
       int rot = 0;
       Bitmap origBitmap = null;
@@ -184,17 +194,14 @@ public class CameraSampleActivity extends Activity {
         break;
       }
 
-      ImageView imageView = new ImageView(context);
       Bitmap bitmap = origBitmap;
       if (degree != null) {
 	      Matrix matrix = new Matrix();
 	      matrix.postRotate(degree);
 	      bitmap = Bitmap.createBitmap(origBitmap, 0, 0, origBitmap.getWidth(), origBitmap.getHeight(), matrix, true);
       }
-	    imageView.setImageBitmap(bitmap);
-
-      container.addView(imageView);
-      return imageView;
+      
+      return bitmap;
     }
 
     @Override
