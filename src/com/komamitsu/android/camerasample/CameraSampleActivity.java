@@ -1,5 +1,7 @@
 package com.komamitsu.android.camerasample;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,14 +15,22 @@ import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.provider.MediaStore.Images.Media;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.ImageView.ScaleType;
 
 public class CameraSampleActivity extends Activity {
   private static final String TAG = CameraSampleActivity.class.getSimpleName();
@@ -143,8 +153,46 @@ public class CameraSampleActivity extends Activity {
 
     @Override
     public Object instantiateItem(ViewGroup container, int position) {
+      Uri uri = imageUris.get(position);
+      Cursor c = getContentResolver().query(uri, null, null, null, null);
+      int rot = 0;
+      Bitmap origBitmap = null;
+      try {
+        c.moveToFirst();
+        int i = c.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
+        String path = c.getString(i);
+        origBitmap = BitmapFactory.decodeFile(path);
+        ExifInterface exifInterface = new ExifInterface(path);
+        rot = Integer.valueOf(exifInterface.getAttribute("Orientation"));
+      } catch (IOException e) {
+        e.printStackTrace();
+      } finally {
+        if (c != null)
+          c.close();
+      }
+
+      Float degree = null;
+      switch (rot) {
+      case ExifInterface.ORIENTATION_ROTATE_90:
+        degree = 90f;
+        break;
+      case ExifInterface.ORIENTATION_ROTATE_180:
+        degree = 180f;
+        break;
+      case ExifInterface.ORIENTATION_ROTATE_270:
+        degree = 270f;
+        break;
+      }
+
       ImageView imageView = new ImageView(context);
-      imageView.setImageURI(imageUris.get(position));
+      Bitmap bitmap = origBitmap;
+      if (degree != null) {
+	      Matrix matrix = new Matrix();
+	      matrix.postRotate(degree);
+	      bitmap = Bitmap.createBitmap(origBitmap, 0, 0, origBitmap.getWidth(), origBitmap.getHeight(), matrix, true);
+      }
+	    imageView.setImageBitmap(bitmap);
+
       container.addView(imageView);
       return imageView;
     }
