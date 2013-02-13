@@ -110,11 +110,26 @@ public class CameraSampleActivity extends Activity {
       int iData = c.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
       String path = c.getString(iData);
       File f = new File(path);
-      return f.length() > 0 ? f : null;
+      if (f.length() <= 0) {
+        getContentResolver().delete(uri, null, null);
+        f.delete();
+        return null;
+      }
+      return f;
     } finally {
       if (c != null)
         c.close();
     }
+  }
+
+  /* (non-Javadoc)
+   * @see android.app.Activity#onDestroy()
+   */
+  @Override
+  protected void onDestroy() {
+    super.onDestroy();
+    if (currentImageUri != null)
+      getFile(currentImageUri);
   }
 
   /*
