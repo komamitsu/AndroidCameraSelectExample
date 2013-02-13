@@ -37,7 +37,7 @@ public class CameraSampleActivity extends Activity {
   private boolean shouldInvokeCamera;
   private ComponentName componentName;
   private ViewPager gallery;
-  private List<Uri> imageUris;
+  private List<File> imageFiles;
   private Uri currentImageUri;
 
   /** Called when the activity is first created. */
@@ -68,7 +68,7 @@ public class CameraSampleActivity extends Activity {
 
       @Override
       public void onClick(DialogInterface dialog, int which) {
-        imageUris = new ArrayList<Uri>();
+        imageFiles = new ArrayList<File>();
         componentName = componentNames.get(which);
         invokeCamera(componentName);
       }
@@ -95,15 +95,38 @@ public class CameraSampleActivity extends Activity {
       switch (resultCode) {
       case Activity.RESULT_OK:
         shouldInvokeCamera = true;
-        imageUris.add(currentImageUri);
+        File specifiedOutputFile = getFile(currentImageUri);
+        File receivedOutputFile = data.getData() == null ? null : getFile(data.getData());
+        File file = specifiedOutputFile;
+        if (receivedOutputFile != null) {
+          file = receivedOutputFile;
+        }
+        imageFiles.add(file);
         break;
       case Activity.RESULT_CANCELED:
         shouldInvokeCamera = false;
-        gallery.setAdapter(new ImageAdapter(this, imageUris));
+        gallery.setAdapter(new ImageAdapter(this, imageFiles));
         break;
       }
       break;
     }
+    }
+  }
+  
+  private File getFile(Uri uri) {
+    Cursor c = getContentResolver().query(uri, null, null, null, null);
+    if (c == null)
+      return null;
+    
+    try {
+      c.moveToFirst();
+      int iData = c.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
+      String path = c.getString(iData);
+      File f = new File(path);
+      return f.length() > 0 ? f : null;
+    } finally {
+      if (c != null)
+        c.close();
     }
   }
 
@@ -136,25 +159,25 @@ public class CameraSampleActivity extends Activity {
     startActivityForResult(intent, 0);
   }
 
-  private class ImageAdapter extends PagerAdapter {
+  private static class ImageAdapter extends PagerAdapter {
     private final Context context;
-    private final List<Uri> imageUris;
+    private final List<File> imageFiles;
 
-    public ImageAdapter(Context context, List<Uri> imageUris) {
+    public ImageAdapter(Context context, List<File> imageFiles) {
       super();
       this.context = context;
-      this.imageUris = imageUris;
+      this.imageFiles = imageFiles;
     }
 
     @Override
     public int getCount() {
-      return imageUris.size();
+      return imageFiles.size();
     }
 
     @Override
     public Object instantiateItem(ViewGroup container, int position) {
-      Uri uri = imageUris.get(position);
-      Bitmap bitmap = getBitmap(uri);
+      File file = imageFiles.get(position);
+      Bitmap bitmap = getBitmap(file);
       
       ImageView imageView = new ImageView(context);
 	    imageView.setImageBitmap(bitmap);
@@ -163,22 +186,16 @@ public class CameraSampleActivity extends Activity {
       return imageView;
     }
     
-    private Bitmap getBitmap(Uri uri) {
-      Cursor c = getContentResolver().query(uri, null, null, null, null);
-      int rot = 0;
+    private Bitmap getBitmap(File file) {
+      String path = file.getAbsolutePath();
       Bitmap origBitmap = null;
+      int rot = 0;
       try {
-        c.moveToFirst();
-        int i = c.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
-        String path = c.getString(i);
         origBitmap = BitmapFactory.decodeFile(path);
         ExifInterface exifInterface = new ExifInterface(path);
         rot = Integer.valueOf(exifInterface.getAttribute("Orientation"));
       } catch (IOException e) {
         e.printStackTrace();
-      } finally {
-        if (c != null)
-          c.close();
       }
 
       Float degree = null;
